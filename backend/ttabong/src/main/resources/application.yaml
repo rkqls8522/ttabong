@@ -1,0 +1,116 @@
+spring:
+  application:
+    name: ttabong
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    show-sql: true
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    properties:
+      hibernate:
+        format_sql: false
+
+
+server:
+  servlet:
+    context-path: /api
+  port: 8080
+jwt:
+  secret: "6K/YHWDOwo33EhQngFpfxRIazkzhRG7X+LaIOPBfgeM"
+  expiration: 1800000
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:mysql://mysqldeploy:3306/volunteer_service
+    username: ddabong
+    password: 707
+  data:
+    redis:
+      host: redisdeploy
+      port: 6379
+  rabbitmq:
+    host: rabbitmqdeploy
+    port: 5672
+  jpa:
+    hibernate:
+      ddl-auto: none
+minio:
+  url: http://ttabong.store:8000
+  access-key: ttabong
+  secret-key: ttabong-bongteum
+  bucket-name: ttabong-bucket
+logging:
+  level:
+    org.hibernate.SQL: DEBUG   # Hibernate SQL 쿼리 로그 출력
+    org.hibernate.type.descriptor.sql: TRACE  # SQL 바인딩된 파라미터 값 출력
+jwt:
+  secret: "6K/YHWDOwo33EhQngFpfxRIazkzhRG7X+LaIOPBfgeM"
+  expiration: 1800000
+---
+spring:
+  config:
+    activate:
+      on-profile: default
+  datasource:
+    url: jdbc:mysql://localhost:3307/volunteer_service
+    username: ddabong
+    password: 707
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: user
+    password: password
+minio:
+  url: http://localhost:8000
+  access-key: ttabong
+  secret-key: ttabong-bongteum
+  bucket-name: ttabong-bucket
+    #logging:
+    #level:
+    #org.hibernate.SQL: DEBUG   # Hibernate SQL 쿼리 로그 출력
+  #org.hibernate.type.descriptor.sql: TRACE  # SQL 바인딩된 파라미터 값 출력
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:mysql://mysqldeploy:3306/volunteer_service
+    username: user
+    password: password
+  data:
+    redis:
+      host: redisdeploy
+      port: 6379
+  rabbitmq:
+    host: rabbitmqdeploy
+    port: 5672
+minio:
+  url: http://localhost:8000
+  access-key: ttabong
+  secret-key: ttabong-bongteum
+  bucket-name: ttabong-bucket
+logging:
+  level:
+    org.hibernate.SQL: DEBUG   # Hibernate SQL 쿼리 로그 출력
+    org.hibernate.type.descriptor.sql: TRACE  # SQL 바인딩된 파라미터 값 출력
+---
+spring:
+  security:
+    user:
+      name: admin
+      password: admin123
+

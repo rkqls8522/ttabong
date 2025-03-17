@@ -1,0 +1,158 @@
+variables:
+  CI_DEBUG: "true"
+  VERSION: "$CI_COMMIT_REF_NAME-$CI_PIPELINE_ID"
+  DOCKER_HOST: "unix:///var/run/docker.sock" # TLS 없이 Docker 데몬과 통신d
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "" # TLS 인증 디렉토리 제거
+
+stages:
+  - test
+  - build
+  - deploy
+  - deploy_dev
+  - deploy_staging
+  - deploy_prod
+Front_Test:
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^dev-be$/ || $CI_COMMIT_BRANCH =~ /^feat\/be(\/.*)?$/'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^infra/ && "$GITLAB_USER_EMAIL" == "$ADMIN_EMAIL"'
+      when: never
+    - when: never
+  tags:
+    - $GITLAB_USER_EMAIL
+  stage: test
+  image: node:22-alpine
+  cache:
+    key: "$GITLAB_USER_EMAIL"
+    paths:
+      - frontend/ttabong/node_modules
+  before_script:
+    - echo "사용자 ID $GITLAB_USER_ID"
+    - echo "로그인 ID $GITLAB_USER_LOGIN"
+    - echo "이름 $GITLAB_USER_NAME"
+    - echo "이메일 $GITLAB_USER_EMAIL"
+    - echo "커밋 작성자 $CI_COMMIT_AUTHOR"
+    - echo "커밋 이메일 $CI_COMMIT_AUTHOR_EMAIL"
+    - cd frontend/ttabong
+    - npm ci # `npm install` 대신 `npm ci` 사용
+  script:
+    - npm run build
+    - npm run test --passWithNoTests  
+  artifacts:
+    when: always
+    paths:
+      - frontend/ttabong/app/junit.xml
+    reports:
+      junit: frontend/ttabong/app/junit.xml
+
+Back_Test:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == /^dev-fe$/ || $CI_COMMIT_BRANCH =~ /^feat\/fe(\/.*)?$/'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^infra/ && "$GITLAB_USER_EMAIL" == "$ADMIN_EMAIL"'
+      when: never
+    - when: never
+  tags:
+    - $GITLAB_USER_EMAIL
+  stage: test
+  image: gradle:jdk17
+  before_script:
+    - cd backend/ttabong
+    - chmod +x gradlew
+  script:
+    - ./gradlew build # 백엔드 빌드
+    - ./gradlew test # 백엔드 유닛 테스트
+  artifacts:
+    when: always
+    paths:
+      - backend/ttabong/build/libs/
+
+
+# ✅ MySQL 이미지 빌드 및 푸시
+build_push:
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^infra/ && "$GITLAB_USER_EMAIL" == "$ADMIN_EMAIL"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "devv" || $CI_COMMIT_BRANCH == "master"'
+      when: on_success  
+
+  tags:
+    - $GITLAB_USER_EMAIL
+  stage: build
+  image: docker:latest 
+  services:
+    - name: docker:20.10-dind
+      entrypoint: ["/bin/sh", "-c", "dockerd-entrypoint.sh & exec /bin/sh"]
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs" 
+
+  before_script:
+    - echo "Starting Docker Daemon"
+    - dockerd &
+
+  script:
+    - echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+    - docker -v
+    - until docker info; do echo "Waiting for Docker daemon to start..."; sleep 1; done
+
+    - docker compose -f docker-compose.ec2.yml build
+    - docker images
+    - docker compose -f docker-compose.ec2.yml push
+
+    - docker compose -f docker-compose.ec2.yml config > docker-compose.processed.yml
+    - cat docker-compose.processed.yml
+
+  artifacts:
+    paths:
+      - docker-compose.processed.yml
+    expire_in: 6h 
+
+deploy:
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^infra/ && "$GITLAB_USER_EMAIL" == "$ADMIN_EMAIL"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "devv" || $CI_COMMIT_BRANCH == "master"'
+      when: on_success  
+  tags:
+    - $GITLAB_USER_EMAIL
+  stage: deploy
+  image: debian:latest
+  dependencies:
+    - build_push # ✅ build_push 단계의 artifacts 가져오기
+  script:
+    # 1️⃣ SSH Key 설정
+    - apt-get update && apt-get install -y openssh-client basez
+    - mkdir -p ~/.ssh
+    - echo "$BASE32_PEM" | base32 --decode > ~/.ssh/test.pem
+    - chmod 600 ~/.ssh/test.pem
+
+    # 2️⃣ 배포 서버에 Docker 로그인 정보 전송
+    - ssh -T -o StrictHostKeyChecking=no -i ~/.ssh/test.pem $DEPLOY_SERVER "
+      echo '$DOCKER_HUB_TOKEN' | docker login -u '$DOCKER_HUB_USERNAME' --password-stdin"
+
+    # 3️⃣ 환경변수가 반영된 `docker-compose.processed.yml`을 배포 서버로 전송
+    - scp -o StrictHostKeyChecking=no -i ~/.ssh/test.pem docker-compose.processed.yml $DEPLOY_SERVER:/home/ubuntu/docker-compose.yml
+
+    # 4️⃣ 배포 서버에서 `docker-compose` 실행 (로그인 유지됨)
+    - ssh -T -o StrictHostKeyChecking=no -i ~/.ssh/test.pem $DEPLOY_SERVER "
+      cd /home/ubuntu && docker-compose pull && docker-compose up -d --remove-orphans"
+deploy_to_staging:
+  tags:
+    - $GITLAB_USER_EMAIL
+  stage: deploy_staging
+  only:
+    - none
+  script:
+    - echo "happy"
+
+deploy_to_production:
+  tags:
+    - $GITLAB_USER_EMAIL
+  stage: deploy_prod
+  only:
+    - none
+
+  when: manual
+  script:
+    - echo "happy"

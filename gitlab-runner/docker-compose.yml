@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  gitlab-runner:
+    build: .
+    container_name: alpine-runner
+    restart: always
+    depends_on:
+      - docker
+    networks:
+      - gitlab_network
+    environment:
+      - GITLAB_URL=https://lab.ssafy.com
+      - EXECUTOR=docker
+      - DEFAULT_IMAGE=alpine:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  docker:
+    image: docker:dind
+    container_name: docker
+    privileged: true
+    networks:
+      - gitlab_network
+
+    ports:
+      - "2375:2375"
+
+networks:
+  gitlab_network:
+    driver: bridge

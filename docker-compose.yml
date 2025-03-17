@@ -1,0 +1,64 @@
+services:
+  mysql:
+    build: ./docker/mysql
+    image: local-mysql:local
+    container_name: mysql_container
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: volunteer_service
+      MYSQL_USER: ddabong
+      MYSQL_PASSWORD: 707
+    ports:
+      - "3307:3306"
+    command: --bind-address=0.0.0.0
+
+  redis:
+    build: ./docker/redis
+    image: local-redis:local
+    container_name: redis_container
+    restart: always
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    build: ./docker/rabbitmq
+    image: local-rabbitmq:local
+    container_name: rabbitmq_container
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    ports:
+      - "5672:5672" # AMQP 프로토콜
+      - "15672:15672" # 관리 웹 콘솔
+  minio:
+    build:
+      context: ./docker/minio
+      dockerfile: Dockerfile
+    image: local-minio:local
+    container_name: minio_container
+    restart: always
+    ports:
+      - "8000:9000"
+      - "8001:9001"
+  nginx:
+    build:
+      context: ./docker/nginx
+      dockerfile: Dockerfile
+    volumes:
+      - ./docker/nginx/local_nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/cert:/home/user/cert
+    image: local-nginx:local
+    container_name: nginx_proxy
+    restart: always
+    ports:
+      - "80:80" # HTTP 포트 공개
+      - "444:443" # HTTP 포트 공개
+  #gitlab-runner:
+  #  build:
+  #    context: ./docker/gitlab-runner
+  #    dockerfile: Dockerfile
+  #  image: local-gitlab-runner:local
+  #  container_name: gitlab-runner
+  #  restart: always

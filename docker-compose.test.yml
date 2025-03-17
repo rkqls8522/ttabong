@@ -1,0 +1,123 @@
+services:
+  mysqlc:
+    build:
+      context: ./docker/mysql
+    image: mysql
+    container_name: mysqldeploy
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ddabong_db
+      MYSQL_USER: ddabong
+      MYSQL_PASSWORD: 707
+    networks:
+      - internal # 내부 네트워크 연결
+    expose:
+      - "3306" # 외부에서 접근 불가능, 내부 네트워크에서만 사용 가능
+
+  rabbitmqc:
+    build:
+      context: ./docker/rabbitmq
+    image: rabbitmq
+    container_name: rabbitmqdeploy
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    networks:
+      - internal
+    expose:
+      - "5672"
+      - "15672"
+
+  redisc:
+    build:
+      context: ./docker/redis
+    image: redis
+    container_name: redisdeploy
+    restart: always
+    networks:
+      - internal
+    expose:
+      - "6379"
+
+  springc:
+    build:
+      context: ./backend/ttabong
+    image: spring
+    container_name: springdeploy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+    restart: always
+    depends_on:
+      - mysqlc
+      - redisc
+      - rabbitmqc
+    networks:
+      - internal
+    expose:
+      - "8080" # 외부에 직접 공개되지 않고 내부 네트워크에서만 접근 가능
+  minio:
+    build:
+      context: ./docker/minio
+      dockerfile: Dockerfile
+    image: minio
+    container_name: minio_deploy
+    restart: always
+    ports:
+      - "8000:9000"
+      - "8001:9001"
+    networks:
+      - external
+  nginxc:
+    build:
+      context: ./frontend/ttabong
+    image: nginx
+    container_name: nginxdeploy
+    restart: no
+    volumes:
+      - certbot-etc:/etc/letsencrypt # 인증서 데이터 유지
+      #- ./frontend/ttabong/nginx.conf:/etc/nginx/nginx.conf # Nginx 설정 유지
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    depends_on:
+      #  - frontend
+      - springc
+      - certbot
+    ports:
+      - "80:80" # 외부에서 HTTP 접근 허용
+      - "443:443" # 외부에서 HTTPS 접근 허용 (필요 시)
+    networks:
+      - internal # 내부 네트워크 연결 (Backend, Frontend 연결)
+      - external
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - external
+networks:
+  internal:
+    driver: bridge
+    internal: true # 🔥 내부 네트워크이므로 외부 접근 차단
+  external:
+    driver: bridge # 🔥 외부에서 접근 가능 (nginx만 연결)
+
+volumes:
+  mysql_data:
+  rabbitmq_data:
+  redis_data:
+  certbot-etc:
+  #frontend:
+  #  build:
+  #    context: ./frontend/ttabong
+  #    dockerfile: Dockerfile
+  #  image: frontend_builder
+  #  container_name: frontend_deploy
+  #  networks:
+  #    - internal
+  #  expose:
+  #    - "3000" # 외부 접근 차단, 내부에서만 접근 가능

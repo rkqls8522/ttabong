@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>홈</title>
+    <script>
+        function checkLogin() {
+            const token = localStorage.getItem("jwt");
+            if (!token) {
+                alert("로그인이 필요합니다!");
+                window.location.href = "/user/login";
+            }
+        }
+
+        window.onload = checkLogin;
+    </script>
+</head>
+<body>
+<h2>홈 화면</h2>
+<p>로그인이 성공적으로 완료되었습니다!</p>
+<button onclick="logout()">로그아웃</button>
+<script>
+    function logout() {
+        localStorage.removeItem("jwt");
+        alert("로그아웃 되었습니다!");
+        window.location.href = "/user/login";
+    }
+</script>
+</body>
+</html>

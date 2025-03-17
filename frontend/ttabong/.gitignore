@@ -1,0 +1,67 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Created by https://www.toptal.com/developers/gitignore/api/react,storybookjs
+# Edit at https://www.toptal.com/developers/gitignore?templates=react,storybookjs
+
+### react ###
+.DS_*
+*.log
+logs
+**/*.backup.*
+**/*.back.*
+
+# Build output 폴더 (빌드 결과물 제외)
+build/
+build/*
+build/index.html
+
+node_modules
+bower_components
+
+*.sublime*
+
+psd
+thumb
+sketch
+
+### StorybookJs ###
+# gitignore template for the Storybook, UI guide for front apps
+# website: https://storybook.js.org/
+
+storybook-static/
+
+# End of https://www.toptal.com/developers/gitignore/api/react,storybookjs
+
+# Build output 폴더 (빌드 결과물 제외)
+build/
+
+# 실행 파일 및 배포 관련 파일 제외
+*.exe
+*.out
+*.app
+*.bin
+*.dll
+*.dmg
